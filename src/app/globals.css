@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+:root {
+  --canvas: #f5f7fb;
+  --ink: #13233a;
+  --muted: #66758c;
+  --panel: #ffffff;
+  --line: #dde4ee;
+  --brand: #0b67d4;
+  --brand-dark: #084e9f;
+  --success: #16794c;
+  --warning: #b75f00;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: Arial, "Noto Sans Thai", sans-serif;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid #78b4ff;
+  outline-offset: 2px;
+}
