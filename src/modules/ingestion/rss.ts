@@ -102,6 +102,12 @@ export function sourceItemFingerprint(item: ParsedSourceItem) {
 export function parseRssOrAtom(xml: string): ParsedSourceItem[] {
   const document = parser.parse(xml) as Record<string, unknown>;
   const rssChannel = (document.rss as { channel?: { item?: unknown } } | undefined)?.channel;
+  const atomFeed = document.feed as { entry?: unknown } | undefined;
+
+  if (!rssChannel && !atomFeed) {
+    throw new Error("URL นี้ไม่ได้ส่งข้อมูล RSS หรือ Atom feed");
+  }
+
   const rssItems = asArray(rssChannel?.item).map((item) => {
     const entry = item as Record<string, unknown>;
     return normalizeItem({
@@ -113,7 +119,7 @@ export function parseRssOrAtom(xml: string): ParsedSourceItem[] {
     });
   });
 
-  const atomEntries = asArray((document.feed as { entry?: unknown } | undefined)?.entry).map((item) => {
+  const atomEntries = asArray(atomFeed?.entry).map((item) => {
     const entry = item as Record<string, unknown>;
     return normalizeItem({
       url: linkFromAtom(entry.link),
@@ -133,6 +139,7 @@ export function parseRssOrAtom(xml: string): ParsedSourceItem[] {
 
 function parseJsonFeed(payload: string): ParsedSourceItem[] {
   const document = JSON.parse(payload) as {
+    version?: string;
     items?: Array<{
       id?: string;
       url?: string;
@@ -146,7 +153,11 @@ function parseJsonFeed(payload: string): ParsedSourceItem[] {
     }>;
   };
 
-  return (document.items ?? [])
+  if (!document.version || !Array.isArray(document.items)) {
+    throw new Error("URL นี้ไม่ได้ส่งข้อมูล JSON Feed");
+  }
+
+  return document.items
     .map((item) =>
       normalizeItem({
         url: item.url ?? item.external_url,

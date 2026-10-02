@@ -10,6 +10,9 @@ const sourceTypeByMode = {
   discovery: ["google_news_discovery"] as const,
 };
 
+const redirectStatuses = new Set([301, 302, 303, 307, 308]);
+const maxFeedRedirects = 3;
+
 function sourceTierRank(tier: SourceTier) {
   return tier === "tier_1_official" ? 3 : tier === "tier_2_established_media" ? 2 : 1;
 }
@@ -184,21 +187,44 @@ async function addItemToStory(input: {
   return { isNew: !existing, storyId: story.id };
 }
 
-async function ingestSource(source: IngestibleSource) {
+async function fetchFeed(source: IngestibleSource) {
   if (!source.feed_url) {
     throw new Error("Source does not have a feed URL.");
   }
 
-  const startedAt = new Date().toISOString();
-  try {
-    const response = await fetch(source.feed_url, {
-      headers: { Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml" },
-      redirect: "error",
+  let currentUrl = new URL(source.feed_url);
+
+  for (let redirectCount = 0; redirectCount <= maxFeedRedirects; redirectCount += 1) {
+    const response = await fetch(currentUrl, {
+      headers: { Accept: "application/rss+xml, application/atom+xml, application/xml, application/feed+json, text/xml" },
+      redirect: "manual",
       signal: AbortSignal.timeout(12_000),
     });
 
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (!redirectStatuses.has(response.status)) {
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
+      return response;
+    }
+
+    const location = response.headers.get("location");
+    if (!location) {
+      throw new Error("Feed redirect does not include a destination URL.");
+    }
+
+    currentUrl = new URL(location, currentUrl);
+    if (currentUrl.protocol !== "https:" && currentUrl.protocol !== "http:") {
+      throw new Error("Feed redirect uses an unsupported URL protocol.");
+    }
+  }
+
+  throw new Error(`Feed redirected more than ${maxFeedRedirects} times.`);
+}
+
+async function ingestSource(source: IngestibleSource) {
+  const startedAt = new Date().toISOString();
+  try {
+    const response = await fetchFeed(source);
     const payload = await response.text();
     const items = parseFeedPayload(payload, response.headers.get("content-type"));
     let newItems = 0;

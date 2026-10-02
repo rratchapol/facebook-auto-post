@@ -12,6 +12,16 @@ export type Source = {
   last_success_at: string | null;
   last_failure_at: string | null;
   created_at: string;
+  latest_fetch: SourceFetch | null;
+};
+
+export type SourceFetch = {
+  status: "succeeded" | "failed";
+  started_at: string;
+  http_status: number | null;
+  items_found: number;
+  error_code: string | null;
+  safe_error_detail: string | null;
 };
 
 export const sourceTypeLabels: Record<SourceType, string> = {

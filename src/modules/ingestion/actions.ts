@@ -17,6 +17,9 @@ export async function refreshApprovedSources(previousState: RefreshActionState):
     revalidatePath("/sources");
     return {
       success: `ดึง ${result.successfulSources}/${result.attemptedSources} แหล่งข่าว พบรายการใหม่ ${result.newItems} รายการ`,
+      error: result.errors.length > 0
+        ? `ดึงไม่สำเร็จ: ${result.errors.map((item) => `${item.sourceName} — ${item.message}`).join(" | ")}`
+        : undefined,
     };
   } catch (error) {
     return { error: error instanceof Error ? error.message : "ไม่สามารถดึงข่าวได้" };
